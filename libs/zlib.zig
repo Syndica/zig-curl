@@ -1,13 +1,13 @@
 const std = @import("std");
 
-pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+pub fn create(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
     const lib = b.addStaticLibrary(.{
         .name = "z",
         .target = target,
         .optimize = optimize,
     });
     lib.linkLibC();
-    lib.addCSourceFiles(.{ .files = srcs, .flags = &.{"-std=c89"} });
+    lib.addCSourceFiles(srcs, &.{"-std=c89"});
     lib.installHeader("libs/zlib/zlib.h", "zlib.h");
     lib.installHeader("libs/zlib/zconf.h", "zconf.h");
     return lib;

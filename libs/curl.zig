@@ -1,12 +1,12 @@
 const std = @import("std");
 
-pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+pub fn create(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
     const lib = b.addStaticLibrary(.{
         .name = "curl",
         .target = target,
         .optimize = optimize,
     });
-    lib.addCSourceFiles(.{ .files = srcs });
+    lib.addCSourceFiles(srcs, &.{});
     lib.addIncludePath(.{ .path = "libs/curl/lib" });
     lib.addIncludePath(.{ .path = "libs/curl/include" });
     lib.installHeadersDirectory("libs/curl/include/curl", "curl");
@@ -30,13 +30,13 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
     lib.defineCMacro("CURL_DISABLE_TFTP", "1");
     lib.defineCMacro("HAVE_LIBZ", "1");
     lib.defineCMacro("HAVE_ZLIB_H", "1");
-    if (target.result.os.tag == .windows) {
+    if (target.isWindows()) {
         lib.linkSystemLibrary("bcrypt");
         return lib;
     }
     lib.defineCMacro("CURL_EXTERN_SYMBOL", "__attribute__ ((__visibility__ (\"default\"))");
 
-    const isDarwin = target.result.isDarwin();
+    const isDarwin = target.isDarwin();
     if (!isDarwin)
         lib.defineCMacro("ENABLE_IPV6", "1");
     lib.defineCMacro("HAVE_ALARM", "1");
@@ -96,7 +96,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
     lib.defineCMacro("HAVE_NETINET_IN_H", "1");
     lib.defineCMacro("HAVE_NETINET_TCP_H", "1");
 
-    if (target.result.os.tag == .linux)
+    if (target.isLinux())
         lib.defineCMacro("HAVE_LINUX_TCP_H", "1");
     lib.defineCMacro("HAVE_NET_IF_H", "1");
     lib.defineCMacro("HAVE_PIPE", "1");

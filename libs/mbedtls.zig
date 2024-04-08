@@ -1,7 +1,6 @@
 const std = @import("std");
-const ResolvedTarget = std.Build.ResolvedTarget;
 
-pub fn create(b: *std.Build, target: ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+pub fn create(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
     const lib = b.addStaticLibrary(.{
         .name = "mbedtls",
         .root_source_file = null,
@@ -9,14 +8,14 @@ pub fn create(b: *std.Build, target: ResolvedTarget, optimize: std.builtin.Optim
         .optimize = optimize,
     });
 
-    lib.addCSourceFiles(.{ .files = srcs, .flags = &.{"-std=c99"} });
+    lib.addCSourceFiles(srcs, &.{"-std=c99"});
     lib.addIncludePath(.{ .path = "libs/mbedtls/include" });
     lib.addIncludePath(.{ .path = "libs/mbedtls/library" });
     lib.linkLibC();
     lib.installHeadersDirectory("libs/mbedtls/include/mbedtls", "mbedtls");
     lib.installHeadersDirectory("libs/mbedtls/include/psa", "psa");
 
-    if (target.result.os.tag == .windows) {
+    if (target.isWindows()) {
         lib.linkSystemLibrary("ws2_32");
     }
     return lib;

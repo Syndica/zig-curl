@@ -9,17 +9,11 @@ const MODULE_NAME = "curl";
 pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const link_vendor = b.option(bool, "link_vendor", "Whether link to vendored libcurl (default: true)") orelse true;
 
-    const module = b.addModule(MODULE_NAME, .{
-        .root_source_file = .{ .path = "src/root.zig" },
+    var libcurl = buildLibcurl(b, target, optimize);
+    var module = b.addModule(MODULE_NAME, .{
+        .source_file = .{ .path = "src/root.zig" },
     });
-
-    var libcurl: ?*Step.Compile = null;
-    if (link_vendor) {
-        libcurl = buildLibcurl(b, target, optimize);
-        module.linkLibrary(libcurl.?);
-    }
 
     try addExample(b, "basic", module, libcurl, target, optimize);
     try addExample(b, "advanced", module, libcurl, target, optimize);
@@ -30,19 +24,14 @@ pub fn build(b: *Build) void {
         .target = target,
         .optimize = optimize,
     });
-
-    if (libcurl) |lib| {
-        main_tests.linkLibrary(lib);
-    } else {
-        main_tests.linkSystemLibrary("curl");
-    }
+    main_tests.linkLibrary(libcurl);
 
     const run_main_tests = b.addRunArtifact(main_tests);
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&run_main_tests.step);
 }
 
-fn buildLibcurl(b: *Build, target: Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *Step.Compile {
+fn buildLibcurl(b: *Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode) *Step.Compile {
     const tls = @import("libs/mbedtls.zig").create(b, target, optimize);
     const zlib = @import("libs/zlib.zig").create(b, target, optimize);
     const curl = @import("libs/curl.zig").create(b, target, optimize);
@@ -56,25 +45,23 @@ fn buildLibcurl(b: *Build, target: Build.ResolvedTarget, optimize: std.builtin.O
 fn addExample(
     b: *Build,
     comptime name: []const u8,
-    curl_module: *Module,
-    libcurl: ?*Step.Compile,
-    target: Build.ResolvedTarget,
+    module: *Module,
+    libcurl: *Step.Compile,
+    target: std.zig.CrossTarget,
     optimize: std.builtin.OptimizeMode,
 ) !void {
     const exe = b.addExecutable(.{
         .name = name,
-        .root_source_file = LazyPath.relative("examples/" ++ name ++ ".zig"),
+        .root_source_file = .{ 
+            .path = "examples/" ++ name ++ ".zig",
+        },
         .target = target,
         .optimize = optimize,
     });
 
     b.installArtifact(exe);
-    exe.root_module.addImport(MODULE_NAME, curl_module);
-    if (libcurl) |lib| {
-        exe.linkLibrary(lib);
-    } else {
-        exe.linkSystemLibrary("curl");
-    }
+    exe.addModule(MODULE_NAME, module);
+    exe.linkLibrary(libcurl);
     exe.linkLibC();
 
     const run_step = b.step(
